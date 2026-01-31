@@ -10,7 +10,22 @@ const reports_routes = require("./routes/reports");
 
 const app = express();
 
-app.use(cors());
+/* ✅ FIXED CORS */
+app.use(
+  cors({
+    origin: [
+      "https://coffee-client-production.up.railway.app",
+      "http://localhost:5173",
+      "http://localhost:3000"
+    ],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
+  })
+);
+
+app.options("*", cors());
+
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -24,4 +39,6 @@ app.use("/api/orders", orders_routes);
 app.use("/api/reports", reports_routes);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`🚀 Server running on port ${PORT}`)
+);
