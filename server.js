@@ -11,11 +11,14 @@ const analyticsRoutes = require("./routes/analytics");
 
 const app = express();
 
+/* 🌍 PUBLIC API — allow everyone */
 app.use(cors());
+app.options("*", cors());
+
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.json({ message: "Coffee POS API running" });
+  res.json({ message: "Coffee POS API running 🚀" });
 });
 
 app.use("/api/auth", auth_routes);
@@ -25,4 +28,6 @@ app.use("/api/orders", orders_routes);
 app.use("/api/reports", reports_routes);
 app.use("/api/analytics", analyticsRoutes);
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`Server running on port ${PORT}`)
+);
