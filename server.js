@@ -7,6 +7,7 @@ const products_routes = require("./routes/products");
 const inventory_routes = require("./routes/inventory");
 const orders_routes = require("./routes/orders");
 const reports_routes = require("./routes/reports");
+const analyticsRoutes = require("./routes/analytics");
 
 const app = express();
 
@@ -22,6 +23,6 @@ app.use("/api/products", products_routes);
 app.use("/api/inventory", inventory_routes);
 app.use("/api/orders", orders_routes);
 app.use("/api/reports", reports_routes);
-
+app.use("/api/analytics", analyticsRoutes);
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
