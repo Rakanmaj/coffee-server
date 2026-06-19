@@ -1,5 +1,6 @@
 const router = require("express").Router();
 const pool = require("../db/db");
+const { encodeDatabaseText } = require("../db/databaseText");
 const requireAuth = require("../middleware/requireAuth");
 
 // create order
@@ -93,7 +94,7 @@ router.post("/", requireAuth, async (req, res) => {
     for (const it of items) {
       const p = byId[it.product_id];
       const qty = Number(it.quantity);
-      const note = it.note || "";
+      const note = encodeDatabaseText(it.note || "");
 
       await client.query(
         "INSERT INTO order_items (order_id, product_id, quantity, price_at_sale_omr, note) VALUES ($1,$2,$3,$4,$5)",

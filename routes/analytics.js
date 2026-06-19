@@ -131,20 +131,25 @@ router.get("/", requireAuth, async (req, res) => {
       [startTs, endTs]
     );
 
-    // 6) Slow movers (include 0 sales using LEFT JOIN)
-    const slowMoversQ = pool.query(
+    // 6) Sales for every product in the selected range, including zero sales
+    const productSalesQ = pool.query(
       `
       SELECT
         p.product_id, p.name, p.category,
-        COALESCE(SUM(oi.quantity), 0)::int AS units,
-        COALESCE(SUM(oi.quantity * oi.price_at_sale_omr), 0)::numeric(12,3) AS revenue_omr
+        COALESCE(s.units, 0)::int AS units,
+        COALESCE(s.revenue_omr, 0)::numeric(12,3) AS revenue_omr
       FROM products p
-      LEFT JOIN order_items oi ON oi.product_id = p.product_id
-      LEFT JOIN orders o ON o.order_id = oi.order_id
-        AND ${RANGE_WHERE}
-      GROUP BY p.product_id, p.name, p.category
-      ORDER BY units ASC, revenue_omr ASC, p.name ASC
-      LIMIT 10
+      LEFT JOIN (
+        SELECT
+          oi.product_id,
+          SUM(oi.quantity)::int AS units,
+          SUM(oi.quantity * oi.price_at_sale_omr)::numeric(12,3) AS revenue_omr
+        FROM order_items oi
+        JOIN orders o ON o.order_id = oi.order_id
+        WHERE ${RANGE_WHERE}
+        GROUP BY oi.product_id
+      ) s ON s.product_id = p.product_id
+      ORDER BY units DESC, revenue_omr DESC, p.name ASC
       `,
       [startTs, endTs]
     );
@@ -272,7 +277,7 @@ router.get("/", requireAuth, async (req, res) => {
       topByUnitsR,
       topByRevenueR,
       top5R,
-      slowMoversR,
+      productSalesR,
       categoryR,
       itemsPerOrderR,
       hoursR,
@@ -286,7 +291,7 @@ router.get("/", requireAuth, async (req, res) => {
       topByUnitsQ,
       topByRevenueQ,
       top5Q,
-      slowMoversQ,
+      productSalesQ,
       categoryQ,
       itemsPerOrderQ,
       hoursQ,
@@ -328,6 +333,15 @@ router.get("/", requireAuth, async (req, res) => {
 
     // Best category
     const categories = categoryR.rows || [];
+    const productSales = productSalesR.rows || [];
+    const slowMovers = [...productSales]
+      .sort(
+        (a, b) =>
+          Number(a.units) - Number(b.units) ||
+          Number(a.revenue_omr) - Number(b.revenue_omr) ||
+          a.name.localeCompare(b.name)
+      )
+      .slice(0, 10);
     const bestCatRevenueRow = categories.reduce(
       (best, r) => (!best || Number(r.revenue_omr) > Number(best.revenue_omr) ? r : best),
       null
@@ -390,7 +404,7 @@ router.get("/", requireAuth, async (req, res) => {
         top_by_units: topByUnitsR.rows[0] || null,
         top_by_revenue: topByRevenueR.rows[0] || null,
         top5: top5R.rows || [],
-        slow_movers: slowMoversR.rows || [],
+        slow_movers: slowMovers,
         all_time_best_seller: allTimeTopR.rows[0] || null,
         top_product_daily_avg_units: Number(topPerDayAvgR.rows[0]?.avg_top_units || 0),
       },
@@ -400,6 +414,8 @@ router.get("/", requireAuth, async (req, res) => {
         best_by_revenue: bestCatRevenueRow?.category || null,
         best_by_units: bestCatUnitsRow?.category || null,
       },
+
+      product_sales: productSales,
 
       peak: {
         busiest_hours: hoursR.rows || [],
