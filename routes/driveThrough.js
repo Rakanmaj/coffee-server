@@ -7,6 +7,7 @@ const { verifyAuthToken } = require("../middleware/authToken");
 
 const orders = new Map();
 const COMPLETE_CLEANUP_MS = 15 * 60 * 1000;
+let ordering_enabled = process.env.DRIVE_THROUGH_ORDERING_ENABLED !== "false";
 
 function public_order(order) {
   return {
@@ -246,6 +247,19 @@ async function save_order_to_pos(order, cashier_id) {
   }
 }
 
+router.get("/availability", (req, res) => {
+  res.json({ enabled: ordering_enabled });
+});
+
+router.put("/availability", requireAuth, (req, res) => {
+  if (typeof req.body?.enabled !== "boolean") {
+    return res.status(400).json({ message: "enabled must be a boolean" });
+  }
+
+  ordering_enabled = req.body.enabled;
+  res.json({ enabled: ordering_enabled });
+});
+
 router.get("/menu", async (req, res) => {
   try {
     const result = await pool.query(
@@ -258,6 +272,10 @@ router.get("/menu", async (req, res) => {
 });
 
 router.post("/orders", async (req, res) => {
+  if (!ordering_enabled) {
+    return res.status(503).json({ message: "Drive-through ordering is currently unavailable" });
+  }
+
   try {
     const built = await build_order_payload(req.body || {});
     if (built.error) {
